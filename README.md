@@ -119,6 +119,8 @@ The server requires authentication via environment variables:
 - `PLANE_API_KEY`: API key for authentication (required for stdio transport)
 - `PLANE_WORKSPACE_SLUG`: Workspace slug identifier (required for stdio transport)
 - `PLANE_ACCESS_TOKEN`: Access token for authentication (alternative to API key)
+- `PLANE_PAGE_PROJECT_ID`: Optional default project UUID for Page tools. This is
+  recommended for Community Edition, where Pages are project-scoped.
 
 **Example** (for stdio transport):
 ```bash
@@ -126,6 +128,28 @@ export PLANE_BASE_URL="https://api.plane.so"
 export PLANE_API_KEY="your-api-key"
 export PLANE_WORKSPACE_SLUG="your-workspace-slug"
 ```
+
+### Self-hosted Community Edition Pages
+
+Community Edition exposes Pages in the product UI at project scope. Point
+`PLANE_BASE_URL` at the instance root (do not append `/api/v1`) and configure a
+default project so an agent can call `create_page` without repeating the project
+UUID:
+
+```bash
+export PLANE_BASE_URL="https://plane.example.com"
+export PLANE_API_KEY="your-api-key"
+export PLANE_WORKSPACE_SLUG="your-workspace-slug"
+export PLANE_PAGE_PROJECT_ID="your-project-uuid"
+```
+
+An explicit `project_id` passed to `create_page`, `list_pages`, or
+`retrieve_page` overrides `PLANE_PAGE_PROJECT_ID`. If the variable and argument
+are both omitted, the tools retain their Plane Cloud workspace-page behavior.
+
+Self-hosted instances must also expose the matching project Pages endpoint at
+`/api/v1/workspaces/{workspace_slug}/projects/{project_id}/pages/`. The sibling
+Plane Community Edition changes in this workspace add that API-key endpoint.
 
 **Note**: For remote HTTP transports (OAuth or PAT), authentication is handled via the connection method (OAuth flow or PAT headers) and does not require these environment variables.
 
@@ -342,7 +366,7 @@ The server provides comprehensive tools for interacting with Plane. All tools us
 |-----------|-------------|
 | `list_pages` | List pages (workspace, or a project's if `project_id` given) |
 | `retrieve_page` | Retrieve a page by ID (workspace, or project's if `project_id` given) |
-| `create_page` | Create a workspace or project page |
+| `create_page` | Create a workspace or project page (`PLANE_PAGE_PROJECT_ID` supplies the Community Edition default) |
 
 ### Workspaces
 
@@ -421,4 +445,3 @@ If you were using the previous Node.js-based `@makeplane/plane-mcp-server`, your
 ```
 
 **Please migrate to the new Python-based configuration shown in the Usage section above.**
-

@@ -1,12 +1,20 @@
 """Page-related tools for Plane MCP Server."""
 
+import os
 from typing import Any
 
 from fastmcp import FastMCP
 from plane.models.pages import CreatePage, Page
+from plane.models.query_params import PaginatedQueryParams
 from plane.models.work_item_pages import CreateWorkItemPage, WorkItemPage
 
 from plane_mcp.client import get_plane_client_context
+
+
+def _resolve_page_project_id(project_id: str | None) -> str | None:
+    """Resolve an explicit project or the Community Edition Pages default."""
+    resolved_project_id = project_id or os.getenv("PLANE_PAGE_PROJECT_ID")
+    return resolved_project_id.strip() if resolved_project_id and resolved_project_id.strip() else None
 
 
 def register_page_tools(mcp: FastMCP) -> None:
@@ -20,22 +28,31 @@ def register_page_tools(mcp: FastMCP) -> None:
         """
         List pages.
 
-        Lists a project's pages if project_id is given, otherwise workspace-level pages.
+        Lists a project's pages if project_id or PLANE_PAGE_PROJECT_ID is set,
+        otherwise workspace-level pages.
 
         Args:
-            project_id: UUID of the project. Omit to list workspace pages.
+            project_id: UUID of the project. Omit to use PLANE_PAGE_PROJECT_ID,
+                or to list workspace pages if no default is configured.
             params: Optional query parameters as a dictionary (e.g., per_page, cursor)
 
         Returns:
             List of Page objects
         """
         client, workspace_slug = get_plane_client_context()
+        project_id = _resolve_page_project_id(project_id)
+        query_params = PaginatedQueryParams(**params) if params else None
         if project_id is not None:
             response = client.pages.list_project_pages(
-                workspace_slug=workspace_slug, project_id=project_id, params=params
+                workspace_slug=workspace_slug,
+                project_id=project_id,
+                params=query_params,
             )
         else:
-            response = client.pages.list_workspace_pages(workspace_slug=workspace_slug, params=params)
+            response = client.pages.list_workspace_pages(
+                workspace_slug=workspace_slug,
+                params=query_params,
+            )
         return response.results
 
     @mcp.tool()
@@ -116,16 +133,19 @@ def register_page_tools(mcp: FastMCP) -> None:
         """
         Retrieve a page by ID.
 
-        Retrieves a project page if project_id is given, otherwise a workspace page.
+        Retrieves a project page if project_id or PLANE_PAGE_PROJECT_ID is set,
+        otherwise a workspace page.
 
         Args:
             page_id: UUID of the page
-            project_id: UUID of the project. Omit for a workspace page.
+            project_id: UUID of the project. Omit to use PLANE_PAGE_PROJECT_ID,
+                or for a workspace page if no default is configured.
 
         Returns:
             Page object
         """
         client, workspace_slug = get_plane_client_context()
+        project_id = _resolve_page_project_id(project_id)
 
         if project_id is not None:
             return client.pages.retrieve_project_page(
@@ -155,13 +175,14 @@ def register_page_tools(mcp: FastMCP) -> None:
         """
         Create a page.
 
-        Creates a project page if project_id is given, otherwise a
-        workspace-level page.
+        Creates a project page if project_id or PLANE_PAGE_PROJECT_ID is set,
+        otherwise a workspace-level page.
 
         Args:
             name: Page name
             description_html: Page content in HTML format
-            project_id: UUID of the project. Omit to create a workspace page.
+            project_id: UUID of the project. Omit to use PLANE_PAGE_PROJECT_ID,
+                or to create a workspace page if no default is configured.
             access: Access level for the page (integer)
             color: Page color
             is_locked: Whether the page is locked
@@ -175,6 +196,7 @@ def register_page_tools(mcp: FastMCP) -> None:
             Created Page object
         """
         client, workspace_slug = get_plane_client_context()
+        project_id = _resolve_page_project_id(project_id)
 
         data = CreatePage(
             name=name,
