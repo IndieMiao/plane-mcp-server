@@ -143,9 +143,9 @@ export PLANE_WORKSPACE_SLUG="your-workspace-slug"
 export PLANE_PAGE_PROJECT_ID="your-project-uuid"
 ```
 
-An explicit `project_id` passed to `create_page`, `list_pages`, or
-`retrieve_page` overrides `PLANE_PAGE_PROJECT_ID`. If the variable and argument
-are both omitted, the tools retain their Plane Cloud workspace-page behavior.
+An explicit `project_id` passed to a Page tool overrides
+`PLANE_PAGE_PROJECT_ID`. If the variable and argument are both omitted, the
+tools retain their Plane Cloud workspace-page behavior.
 
 Self-hosted instances must also expose the matching project Pages endpoint at
 `/api/v1/workspaces/{workspace_slug}/projects/{project_id}/pages/`. The sibling
@@ -367,6 +367,9 @@ The server provides comprehensive tools for interacting with Plane. All tools us
 | `list_pages` | List pages (workspace, or a project's if `project_id` given) |
 | `retrieve_page` | Retrieve a page by ID (workspace, or project's if `project_id` given) |
 | `create_page` | Create a workspace or project page (`PLANE_PAGE_PROJECT_ID` supplies the Community Edition default) |
+| `update_page` | Partially update page fields or archive a page |
+| `rename_page` | Rename a page |
+| `delete_page` | Delete a page (Community Edition project pages must be archived first) |
 
 ### Workspaces
 

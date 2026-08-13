@@ -44,7 +44,7 @@ def extract_result(result):
         if hasattr(content, "text"):
             try:
                 return json.loads(content.text)
-            except:
+            except json.JSONDecodeError:
                 return {"raw": content.text}
     return {}
 
@@ -289,6 +289,9 @@ EXPECTED_TOOLS = [
     "list_pages",
     "retrieve_page",
     "create_page",
+    "update_page",
+    "rename_page",
+    "delete_page",
     # Work item activity tools
     "list_work_item_activities",
     "retrieve_work_item_activity",

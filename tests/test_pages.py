@@ -45,6 +45,20 @@ class FakePages:
             description_html=kwargs["data"].description_html,
         )
 
+    def _patch(self, endpoint, data):
+        self.calls.append(("_patch", {"endpoint": endpoint, "data": data}))
+        return {
+            "id": endpoint.rsplit("/", 1)[-1],
+            "name": data.get("name", "Updated page"),
+            "description_html": data.get("description_html"),
+        }
+
+    def delete_project_page(self, **kwargs):
+        self.calls.append(("delete_project_page", kwargs))
+
+    def delete_workspace_page(self, **kwargs):
+        self.calls.append(("delete_workspace_page", kwargs))
+
 
 class FakeClient:
     def __init__(self):
@@ -131,3 +145,91 @@ def test_list_pages_converts_dict_query_params_for_plane_sdk(monkeypatch):
     assert method == "list_project_pages"
     assert kwargs["params"].per_page == 25
     assert kwargs["params"].cursor == "25:1:0"
+
+
+def test_update_page_uses_community_project_endpoint(monkeypatch):
+    monkeypatch.setenv("PLANE_PAGE_PROJECT_ID", "project-default")
+    client = FakeClient()
+
+    _call(
+        monkeypatch,
+        client,
+        "update_page",
+        {
+            "page_id": "page-1",
+            "description_html": "<p>Updated</p>",
+            "color": "#ff0000",
+            "is_locked": False,
+            "archived_at": "2026-08-13",
+        },
+    )
+
+    method, kwargs = client.pages.calls[-1]
+    assert method == "_patch"
+    assert kwargs["endpoint"] == "community/projects/project-default/pages/page-1"
+    assert kwargs["data"] == {
+        "description_html": "<p>Updated</p>",
+        "color": "#ff0000",
+        "is_locked": False,
+        "archived_at": "2026-08-13",
+    }
+
+
+def test_rename_page_is_a_name_only_update(monkeypatch):
+    monkeypatch.setenv("PLANE_PAGE_PROJECT_ID", "project-default")
+    client = FakeClient()
+
+    _call(
+        monkeypatch,
+        client,
+        "rename_page",
+        {"page_id": "page-1", "name": "Renamed page"},
+    )
+
+    method, kwargs = client.pages.calls[-1]
+    assert method == "_patch"
+    assert kwargs["endpoint"] == "community/projects/project-default/pages/page-1"
+    assert kwargs["data"] == {"name": "Renamed page"}
+
+
+def test_update_workspace_page_without_default(monkeypatch):
+    monkeypatch.delenv("PLANE_PAGE_PROJECT_ID", raising=False)
+    client = FakeClient()
+
+    _call(
+        monkeypatch,
+        client,
+        "update_page",
+        {"page_id": "page-1", "name": "Workspace page renamed"},
+    )
+
+    method, kwargs = client.pages.calls[-1]
+    assert method == "_patch"
+    assert kwargs["endpoint"] == "community/pages/page-1"
+    assert kwargs["data"] == {"name": "Workspace page renamed"}
+
+
+def test_delete_page_uses_community_default_project(monkeypatch):
+    monkeypatch.setenv("PLANE_PAGE_PROJECT_ID", "project-default")
+    client = FakeClient()
+
+    _call(monkeypatch, client, "delete_page", {"page_id": "page-1"})
+
+    method, kwargs = client.pages.calls[-1]
+    assert method == "delete_project_page"
+    assert kwargs == {
+        "workspace_slug": "community",
+        "project_id": "project-default",
+        "page_id": "page-1",
+    }
+
+
+def test_delete_workspace_page_without_default(monkeypatch):
+    monkeypatch.delenv("PLANE_PAGE_PROJECT_ID", raising=False)
+    client = FakeClient()
+
+    _call(monkeypatch, client, "delete_page", {"page_id": "page-1"})
+
+    method, kwargs = client.pages.calls[-1]
+    assert method == "delete_workspace_page"
+    assert kwargs == {"workspace_slug": "community", "page_id": "page-1"}
