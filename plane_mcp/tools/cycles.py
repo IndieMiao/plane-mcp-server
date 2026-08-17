@@ -10,13 +10,13 @@ from plane.models.cycles import (
     CreateCycle,
     Cycle,
     PaginatedArchivedCycleResponse,
-    PaginatedCycleLiteResponse,
+    PaginatedCycleResponse,
     PaginatedCycleWorkItemResponse,
     TransferCycleWorkItemsRequest,
     UpdateCycle,
 )
 from plane.models.enums import CycleStatusEnum
-from plane.models.query_params import CycleLiteListQueryParams, LiteListQueryParams, WorkItemQueryParams
+from plane.models.query_params import CycleListQueryParams, LiteListQueryParams, WorkItemQueryParams
 from pydantic import Field
 
 from plane_mcp.client import get_plane_client_context
@@ -36,7 +36,7 @@ def register_cycle_tools(mcp: FastMCP) -> None:
         cursor: str | None = None,
         per_page: int | None = None,
         order_by: str | None = None,
-    ) -> PaginatedCycleLiteResponse | PaginatedArchivedCycleResponse:
+    ) -> PaginatedCycleResponse | list[Cycle] | PaginatedArchivedCycleResponse:
         """
         List cycles in a project. Active (non-archived) cycles by default.
 
@@ -52,8 +52,9 @@ def register_cycle_tools(mcp: FastMCP) -> None:
             order_by: Field to order results by. Prefix with '-' for descending.
 
         Returns:
-            Paginated envelope: results (lite cycles) + total_count,
-            next_cursor, next_page_results.
+            Paginated envelope: results + total_count, next_cursor,
+            next_page_results。注意 status="current" 是个例外：服务端对它返回
+            裸数组而不是分页信封（SDK 的 Cycles.list 两种形状都能处理）。
         """
         client, workspace_slug = get_plane_client_context()
         if archived:
@@ -63,8 +64,15 @@ def register_cycle_tools(mcp: FastMCP) -> None:
                 project_id=project_id,
                 params=params.model_dump(exclude_none=True),
             )
-        params = CycleLiteListQueryParams(cursor=cursor, per_page=per_page, order_by=order_by, status=status)
-        return client.cycles.list_lite(workspace_slug=workspace_slug, project_id=project_id, params=params)
+        # 用标准的 /cycles/ 而不是 SDK 的 list_lite()（打 /cycles-lite/）。
+        # 原因同 projects.py 的 list_projects：本部署的 Plane（community-pages
+        # 分支 v1.3.1）没有 -lite 系列端点，而 plane-sdk 0.2.20 假定它存在，
+        # 于是稳定返回 404。实测 /cycles/ 200、/cycles-lite/ 404。
+        #
+        # 参数类型也跟着换成 CycleListQueryParams：它是 PaginatedQueryParams 的
+        # 子类，同样带 status 过滤，所以本工具的 status 参数语义不变。
+        params = CycleListQueryParams(cursor=cursor, per_page=per_page, order_by=order_by, status=status)
+        return client.cycles.list(workspace_slug=workspace_slug, project_id=project_id, params=params)
 
     @mcp.tool()
     def create_cycle(

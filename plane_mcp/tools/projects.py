@@ -14,14 +14,14 @@ from plane.models.estimates import (
 )
 from plane.models.projects import (
     CreateProject,
-    PaginatedProjectLiteResponse,
     PaginatedProjectMemberResponse,
+    PaginatedProjectResponse,
     Project,
     ProjectFeature,
     ProjectWorklogSummary,
     UpdateProject,
 )
-from plane.models.query_params import ProjectLiteListQueryParams
+from plane.models.query_params import PaginatedQueryParams
 from plane.models.query_params import MemberListQueryParams
 
 from plane_mcp.client import get_plane_client_context
@@ -35,12 +35,9 @@ def register_project_tools(mcp: FastMCP) -> None:
         cursor: str | None = None,
         per_page: int | None = None,
         order_by: str | None = None,
-    ) -> PaginatedProjectLiteResponse:
+    ) -> PaginatedProjectResponse:
         """
-        List projects in a workspace (lite, paginated).
-
-        Trimmed fields: id, identifier, name, description, emoji, icon_prop,
-        cover_image, cover_image_url, archived_at. For full detail use retrieve_project.
+        List projects in a workspace (paginated).
 
         Args:
             cursor: Prior response's next_cursor; omit for first page.
@@ -53,11 +50,20 @@ def register_project_tools(mcp: FastMCP) -> None:
         """
         client, workspace_slug = get_plane_client_context()
 
-        params = ProjectLiteListQueryParams(
-            cursor=cursor, per_page=per_page, order_by=order_by, include_archived=False
-        )
+        # 用标准的 /projects/ 而不是 SDK 的 list_lite()（打 /projects-lite/）。
+        #
+        # 本部署的 Plane 是 IndieMiao/plane 的 community-pages 分支（v1.3.1），
+        # 服务端还没有 -lite 系列端点，而 plane-sdk 0.2.20 假定它存在——
+        # list_lite() 在这个组合下稳定返回 404 "Page not found"，现象很像
+        # 「MCP 没连上」，实际连接与鉴权都正常，只是打了一个不存在的路由。
+        # 实测：/projects/ 返回 200，/projects-lite/ 返回 404。
+        #
+        # 代价是响应字段比 lite 版多一些，功能等价。
+        # 若日后把 fork rebase 到带 -lite 端点的上游，这里可以换回 list_lite()
+        # 以减少传输量；在那之前换回去会立刻退回 404。
+        params = PaginatedQueryParams(cursor=cursor, per_page=per_page, order_by=order_by)
 
-        return client.projects.list_lite(workspace_slug=workspace_slug, params=params)
+        return client.projects.list(workspace_slug=workspace_slug, params=params)
 
     @mcp.tool()
     def create_project(
