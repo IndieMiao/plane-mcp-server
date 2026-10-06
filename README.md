@@ -11,7 +11,55 @@ A Model Context Protocol (MCP) server for Plane integration. This server provide
 
 ## Usage
 
-The server supports three transport methods. **We recommend using `uvx`** as it doesn't require installation.
+### Use this modified fork on another machine
+
+The `community-pages` branch includes Community Edition Pages, virtual users,
+custom job titles and multiple job titles. Install this source checkout with
+[uv](https://docs.astral.sh/uv/):
+
+```bash
+git clone --branch community-pages --single-branch https://github.com/IndieMiao/plane-mcp-server.git
+cd plane-mcp-server
+uv sync --frozen --python 3.12
+```
+
+Configure your MCP client to run the checkout, replacing the directory and
+environment values for your instance:
+
+```json
+{
+  "mcpServers": {
+    "plane": {
+      "command": "uv",
+      "args": [
+        "--directory", "/ABSOLUTE/PATH/plane-mcp-server",
+        "run", "--frozen", "plane-mcp-server", "stdio"
+      ],
+      "env": {
+        "PLANE_BASE_URL": "https://plane.example.com",
+        "PLANE_WORKSPACE_SLUG": "your-workspace",
+        "PLANE_API_KEY": "<your-plane-api-key>"
+      }
+    }
+  }
+}
+```
+
+Connect to a Plane instance that already has this fork's backend extensions.
+For Community Edition Pages, also set `PLANE_PAGE_PROJECT_ID` to the target
+project UUID. Creating virtual users or job titles requires a workspace admin's
+API key. After connecting, verify that `list_virtual_users`,
+`create_virtual_user`, `list_virtual_user_job_titles`, and
+`create_virtual_user_job_title` appear in the tool list.
+
+To update this checkout, run `git pull --ff-only`, then `uv sync --frozen`, and
+reconnect the MCP client. The upstream PyPI package and hosted Plane MCP below
+do not include this fork's custom tools.
+
+### Upstream transport examples
+
+The server supports three transport methods. The following examples use the
+upstream distribution; use the source configuration above for this fork.
 
 **Requirements**:
 - **Python 3.10+** (for stdio transport, via `uvx`)
@@ -376,10 +424,30 @@ The server provides comprehensive tools for interacting with Plane. All tools us
 | Tool Name | Description |
 |-----------|-------------|
 | `get_workspace_members` | Get all members of the current workspace |
+| `list_virtual_users` | List Community Edition virtual identities and their user IDs |
+| `create_virtual_user` | Create a virtual identity and optionally join projects (workspace admin only) |
+| `list_virtual_user_job_titles` | List default and custom job title names in the workspace |
+| `create_virtual_user_job_title` | Add a reusable job title name (workspace admin only) |
 | `get_features` | Get feature flags (workspace, or a project's if `project_id` given) |
 | `update_workspace_features` | Update features of the current workspace |
 
 ### Users
+
+On a Community Edition instance with the virtual-users extension, create an
+identity with `create_virtual_user(display_name="Development Agent",
+project_ids=["PROJECT_UUID"])`. Then use `list_virtual_users()` to find its `id`
+and `manage_work_item_assignee(project_id=..., work_item_id=...,
+add_user_id=...)` to assign a task while preserving other assignees. The identity
+must belong to the task's project. Virtual users cannot log in: the agent uses
+its existing API credentials and audit records retain the actual caller.
+
+Pass `job_titles=["游戏主程", "架构师"]` to `create_virtual_user` to attach multiple
+job titles. New names are saved as reusable workspace options. Use
+`list_virtual_user_job_titles()` to list options or
+`create_virtual_user_job_title(name="高级测试工程师")` to add one. Job titles do
+not change member permissions; `list_virtual_users()` includes the full `job_titles`
+array. The legacy `job_title` argument remains supported when `job_titles` is
+omitted; responses keep `job_title` as the first selected title.
 
 | Tool Name | Description |
 |-----------|-------------|
