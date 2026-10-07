@@ -75,6 +75,20 @@ def register_workspace_tools(mcp: FastMCP) -> None:
         return client.workspaces._post(f"{workspace_slug}/virtual-user-job-titles", {"name": name})
 
     @mcp.tool()
+    def update_workspace_member_job_titles(user_id: str, job_titles: list[str]) -> dict[str, Any]:
+        """Replace a member's job title tags in the current workspace as an admin.
+
+        Args:
+            user_id: User UUID, not the workspace membership UUID. Supports
+                active human and virtual members of the current workspace.
+            job_titles: Complete list of names to keep; [] clears all titles.
+                New names become reusable workspace options. Other workspaces
+                and member permissions are unchanged.
+        """
+        client, workspace_slug = get_plane_client_context()
+        return client.workspaces._patch(f"{workspace_slug}/members/{user_id}/job-titles", {"job_titles": job_titles})
+
+    @mcp.tool()
     def get_workspace_members(
         first_name: str | None = None,
         last_name: str | None = None,

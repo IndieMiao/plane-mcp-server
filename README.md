@@ -428,6 +428,7 @@ The server provides comprehensive tools for interacting with Plane. All tools us
 | `create_virtual_user` | Create a virtual identity and optionally join projects (workspace admin only) |
 | `list_virtual_user_job_titles` | List default and custom job title names in the workspace |
 | `create_virtual_user_job_title` | Add a reusable job title name (workspace admin only) |
+| `update_workspace_member_job_titles` | Replace or clear a human or virtual member's job titles in the current workspace (admin only) |
 | `get_features` | Get feature flags (workspace, or a project's if `project_id` given) |
 | `update_workspace_features` | Update features of the current workspace |
 
@@ -448,6 +449,12 @@ job titles. New names are saved as reusable workspace options. Use
 not change member permissions; `list_virtual_users()` includes the full `job_titles`
 array. The legacy `job_title` argument remains supported when `job_titles` is
 omitted; responses keep `job_title` as the first selected title.
+
+Use `update_workspace_member_job_titles(user_id="USER_UUID",
+job_titles=["架构师", "IT运维"])` to replace an existing member's titles in the
+current workspace; pass `[]` to clear them. The UUID identifies the user, not
+the workspace membership record. This works for both human and virtual members,
+requires a workspace administrator, and leaves other workspaces' titles unchanged.
 
 | Tool Name | Description |
 |-----------|-------------|

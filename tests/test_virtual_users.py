@@ -117,3 +117,25 @@ def test_explicit_empty_job_titles_override_legacy(monkeypatch):
     resource._post.assert_called_once_with(
         "community/virtual-users", {"display_name": "Agent", "project_ids": [], "job_titles": []}
     )
+
+
+def test_update_member_job_titles(monkeypatch):
+    resource = Mock()
+    resource._patch.return_value = {"id": "member-user", "job_titles": ["架构师", "IT运维"]}
+    result = _call(
+        monkeypatch,
+        resource,
+        "update_workspace_member_job_titles",
+        {"user_id": "member-user", "job_titles": ["架构师", "IT运维"]},
+    )
+    resource._patch.assert_called_once_with(
+        "community/members/member-user/job-titles", {"job_titles": ["架构师", "IT运维"]}
+    )
+    assert result.data["job_titles"] == ["架构师", "IT运维"]
+
+
+def test_clear_member_job_titles(monkeypatch):
+    resource = Mock()
+    resource._patch.return_value = {"id": "member-user", "job_titles": []}
+    _call(monkeypatch, resource, "update_workspace_member_job_titles", {"user_id": "member-user", "job_titles": []})
+    resource._patch.assert_called_once_with("community/members/member-user/job-titles", {"job_titles": []})
