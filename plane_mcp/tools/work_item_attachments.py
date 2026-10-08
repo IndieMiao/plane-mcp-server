@@ -11,6 +11,7 @@ import requests as _requests
 from fastmcp import FastMCP
 from fastmcp.utilities.types import Image
 from plane.errors.errors import HttpError
+from plane.models.work_items import WorkItemAttachment
 
 from plane_mcp.client import get_plane_client_context
 
@@ -79,6 +80,34 @@ def _attachment_to_dict(attachment: Any, workspace_slug: str) -> dict[str, Any]:
     data["size"] = attrs.get("size") or data.get("size")
     data["content_type"] = attrs.get("type")
     return data
+
+
+def _upload_attributed_attachment(
+    resource: Any,
+    workspace_slug: str,
+    project_id: str,
+    work_item_id: str,
+    file_bytes: bytes,
+    name: str,
+    content_type: str,
+    virtual_user_id: str,
+) -> WorkItemAttachment:
+    """Carry the selected author through initiation and upload confirmation."""
+    endpoint = f"{workspace_slug}/projects/{project_id}/work-items/{work_item_id}/attachments"
+    raw = resource._post(
+        endpoint,
+        {"name": name, "type": content_type, "size": len(file_bytes), "virtual_user_id": virtual_user_id},
+    )
+    upload_data = raw["upload_data"]
+    response = _requests.post(
+        upload_data["url"],
+        data=upload_data.get("fields", {}),
+        files={"file": (name, file_bytes, content_type)},
+        timeout=120,
+    )
+    response.raise_for_status()
+    resource._patch(f"{endpoint}/{raw['asset_id']}", {"is_uploaded": True, "virtual_user_id": virtual_user_id})
+    return WorkItemAttachment.model_validate(raw["attachment"])
 
 
 def register_work_item_attachment_tools(mcp: FastMCP) -> None:
@@ -176,6 +205,7 @@ def register_work_item_attachment_tools(mcp: FastMCP) -> None:
         work_item_id: str,
         url: str,
         name: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> dict[str, Any]:
         """Fetch a file from a public URL and attach it to a work item.
 
@@ -190,6 +220,7 @@ def register_work_item_attachment_tools(mcp: FastMCP) -> None:
             url: Publicly accessible URL of the file to attach
                 (e.g. a GitHub raw URL, public S3 link, or direct download link)
             name: Override the filename. Defaults to the filename in the URL path.
+            virtual_user_id: Optional project virtual user UUID to display as the uploader.
 
         Returns:
             Created attachment metadata: id, name, size, content_type.
@@ -231,13 +262,19 @@ def register_work_item_attachment_tools(mcp: FastMCP) -> None:
 
         client, workspace_slug = get_plane_client_context()
         try:
-            attachment = client.work_items.attachments.upload_from_bytes(
+            upload = client.work_items.attachments.upload_from_bytes
+            extra: dict[str, Any] = {}
+            if virtual_user_id is not None:
+                upload = _upload_attributed_attachment
+                extra = {"resource": client.work_items.attachments, "virtual_user_id": virtual_user_id}
+            attachment = upload(
                 workspace_slug=workspace_slug,
                 project_id=project_id,
                 work_item_id=work_item_id,
                 file_bytes=file_bytes,
                 name=filename,
                 content_type=content_type,
+                **extra,
             )
         except HttpError as e:
             raise ValueError(f"Failed to upload attachment: HTTP {e.status_code} — {e.response}") from e
@@ -249,6 +286,7 @@ def register_work_item_attachment_tools(mcp: FastMCP) -> None:
         project_id: str,
         work_item_id: str,
         attachment_id: str,
+        virtual_user_id: str | None = None,
     ) -> None:
         """Delete an attachment from a work item.
 
@@ -258,9 +296,15 @@ def register_work_item_attachment_tools(mcp: FastMCP) -> None:
             project_id: UUID of the project
             work_item_id: UUID of the work item
             attachment_id: UUID of the attachment to delete
+            virtual_user_id: Optional project virtual user UUID for the deletion activity.
         """
         client, workspace_slug = get_plane_client_context()
         try:
+            if virtual_user_id is not None:
+                return client.work_items.attachments._delete(
+                    f"{workspace_slug}/projects/{project_id}/work-items/{work_item_id}/attachments/{attachment_id}",
+                    data={"virtual_user_id": virtual_user_id},
+                )
             client.work_items.attachments.delete(
                 workspace_slug=workspace_slug,
                 project_id=project_id,

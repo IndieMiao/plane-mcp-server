@@ -80,6 +80,40 @@ Update the backend before reconnecting the MCP client; older backends do not
 support this parameter. No new migration or frontend build is needed for this
 comment extension if virtual users are already installed.
 
+### Attribute work to a virtual employee
+
+With this fork's attribution backend and migration `0126_virtual_user_attribution`
+installed, these tools accept an optional `virtual_user_id`:
+
+- `create_work_item`, `update_work_item` (including sub-tasks, content, status, priority, dates and estimates)
+- `manage_work_item_assignee`, `manage_work_item_label`
+- `upload_work_item_attachment_from_url`, `delete_work_item_attachment`
+- `create_work_item_link`, `update_work_item_link`, `delete_work_item_link`
+- `create_page`, `update_page`, `rename_page`
+
+```python
+create_work_item(
+    project_id="PROJECT_UUID",
+    name="Implement the scene",
+    virtual_user_id="VIRTUAL_USER_UUID",
+)
+```
+
+The identity is the visible author/operator; assignees are still set separately.
+Created cards appear in the virtual employee's Created view. Activity records show
+the virtual employee, while the backend retains the authenticated caller for audit
+and creator permissions. Page ownership stays with the authenticated user. Pages
+require a project ID or `PLANE_PAGE_PROJECT_ID` when using virtual attribution.
+
+Both identities must be active workspace/project members or administrators.
+Omitting the parameter retains the ordinary API-key behavior. Attachment uploads
+carry the identity through initiation and confirmation without sending it or Plane
+credentials to storage. DELETE attribution is sent as a JSON body. Archive/restore,
+card deletion and Page deletion are outside this extension.
+
+Deploy the matching API and worker builds, run the migration, update the frontend,
+and reconnect the MCP client so its tool schemas are refreshed.
+
 ### Upstream transport examples
 
 The server supports three transport methods. The following examples use the

@@ -22,6 +22,19 @@ from pydantic import Field
 from plane_mcp.client import get_plane_client_context
 from plane_mcp.tools.pql_reference import PQL_FIELD_HINT, PQL_FULL_REFERENCE
 
+
+class CreateAttributedWorkItem(CreateWorkItem):
+    """Preserve the optional Community Edition attribution field through the SDK."""
+
+    virtual_user_id: str | None = None
+
+
+class UpdateAttributedWorkItem(UpdateWorkItem):
+    """Preserve the optional Community Edition attribution field through the SDK."""
+
+    virtual_user_id: str | None = None
+
+
 logger = get_logger(__name__)
 
 
@@ -226,6 +239,7 @@ def register_work_item_tools(mcp: FastMCP) -> None:
         state: str | None = None,
         estimate_point: str | None = None,
         type: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> WorkItem:
         """
         Create a new work item.
@@ -253,6 +267,8 @@ def register_work_item_tools(mcp: FastMCP) -> None:
             estimate_point: Estimate point value
             type: Work item type identifier
 
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
+
         Returns:
             Created WorkItem object
         """
@@ -262,7 +278,8 @@ def register_work_item_tools(mcp: FastMCP) -> None:
             priority if priority in get_args(PriorityEnum) else None  # type: ignore[assignment]
         )
 
-        data = CreateWorkItem(
+        data = CreateAttributedWorkItem(
+            virtual_user_id=virtual_user_id,
             name=name,
             assignees=assignees,
             labels=labels,
@@ -408,6 +425,7 @@ def register_work_item_tools(mcp: FastMCP) -> None:
         state: str | None = None,
         estimate_point: str | None = None,
         type: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> WorkItem:
         """
         Update a work item by ID.
@@ -436,6 +454,8 @@ def register_work_item_tools(mcp: FastMCP) -> None:
             estimate_point: Estimate point value
             type: Work item type identifier
 
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
+
         Returns:
             Updated WorkItem object
         """
@@ -445,7 +465,8 @@ def register_work_item_tools(mcp: FastMCP) -> None:
             priority if priority in get_args(PriorityEnum) else None  # type: ignore[assignment]
         )
 
-        data = UpdateWorkItem(
+        data = UpdateAttributedWorkItem(
+            virtual_user_id=virtual_user_id,
             name=name,
             assignees=assignees,
             labels=labels,
@@ -490,6 +511,7 @@ def register_work_item_tools(mcp: FastMCP) -> None:
         work_item_id: str,
         add_user_id: str | None = None,
         remove_user_id: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> WorkItem:
         """
         Add or remove a single assignee on a work item without replacing the full list.
@@ -503,6 +525,8 @@ def register_work_item_tools(mcp: FastMCP) -> None:
             work_item_id: UUID of the work item
             add_user_id: UUID of the user to add as assignee
             remove_user_id: UUID of the user to remove from assignees
+
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
 
         Returns:
             Updated WorkItem object
@@ -520,7 +544,7 @@ def register_work_item_tools(mcp: FastMCP) -> None:
             workspace_slug=workspace_slug,
             project_id=project_id,
             work_item_id=work_item_id,
-            data=UpdateWorkItem(assignees=ids),
+            data=UpdateAttributedWorkItem(virtual_user_id=virtual_user_id, assignees=ids),
         )
 
     @mcp.tool()
@@ -529,6 +553,7 @@ def register_work_item_tools(mcp: FastMCP) -> None:
         work_item_id: str,
         add_label_id: str | None = None,
         remove_label_id: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> WorkItem:
         """
         Add or remove a single label on a work item without replacing the full list.
@@ -542,6 +567,8 @@ def register_work_item_tools(mcp: FastMCP) -> None:
             work_item_id: UUID of the work item
             add_label_id: UUID of the label to add
             remove_label_id: UUID of the label to remove
+
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
 
         Returns:
             Updated WorkItem object
@@ -559,7 +586,7 @@ def register_work_item_tools(mcp: FastMCP) -> None:
             workspace_slug=workspace_slug,
             project_id=project_id,
             work_item_id=work_item_id,
-            data=UpdateWorkItem(labels=ids),
+            data=UpdateAttributedWorkItem(virtual_user_id=virtual_user_id, labels=ids),
         )
 
     @mcp.tool()
