@@ -14,6 +14,12 @@ from plane.models.work_items import (
 from plane_mcp.client import get_plane_client_context
 
 
+class CreateVirtualUserComment(CreateWorkItemComment):
+    """Preserve the Community Edition author field when the SDK serializes a request."""
+
+    virtual_user_id: str | None = None
+
+
 def register_work_item_comment_tools(mcp: FastMCP) -> None:
     """Register all work item comment-related tools with the MCP server."""
 
@@ -77,6 +83,7 @@ def register_work_item_comment_tools(mcp: FastMCP) -> None:
         access: str | None = None,
         external_source: str | None = None,
         external_id: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> WorkItemComment:
         """
         Create a comment for a work item.
@@ -89,6 +96,10 @@ def register_work_item_comment_tools(mcp: FastMCP) -> None:
             access: Access level for the comment (INTERNAL or EXTERNAL)
             external_source: External system source name
             external_id: External system identifier
+            virtual_user_id: Optional virtual user UUID from list_virtual_users.
+                Both caller and virtual user must be active members of the workspace
+                and project (not guests). Requires this fork's virtual-comment backend.
+                The API key's owner remains the audited creator. Omit to comment as yourself.
 
         Returns:
             Created WorkItemComment object
@@ -100,12 +111,13 @@ def register_work_item_comment_tools(mcp: FastMCP) -> None:
             access if access in get_args(AccessEnum) else None  # type: ignore[assignment]
         )
 
-        data = CreateWorkItemComment(
+        data = CreateVirtualUserComment(
             comment_html=comment_html,
             comment_json=comment_json,
             access=validated_access,
             external_source=external_source,
             external_id=external_id,
+            virtual_user_id=virtual_user_id,
         )
 
         return client.work_items.comments.create(

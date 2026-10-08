@@ -19,7 +19,8 @@ def register_workspace_tools(mcp: FastMCP) -> None:
 
         Returns user IDs, display names, job_titles and is_virtual. Use the returned id with
         manage_work_item_assignee(add_user_id=...) to assign a task to an agent's
-        virtual identity. The identity must be a member of the task's project.
+        virtual identity, or create_work_item_comment(virtual_user_id=...) to comment.
+        The identity must be a member of the task's project.
         Requests run with the caller's existing credentials; virtual users cannot
         log in. Requires the Community Edition virtual-users API extension.
         """
@@ -33,7 +34,7 @@ def register_workspace_tools(mcp: FastMCP) -> None:
         job_title: str | None = None,
         job_titles: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Create an assignment-only virtual user as a workspace administrator.
+        """Create a virtual user for task assignment and comments as a workspace administrator.
 
         Args:
             display_name: Name identifying the person or agent (required).

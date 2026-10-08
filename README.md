@@ -56,6 +56,30 @@ To update this checkout, run `git pull --ff-only`, then `uv sync --frozen`, and
 reconnect the MCP client. The upstream PyPI package and hosted Plane MCP below
 do not include this fork's custom tools.
 
+### Comment as a virtual user
+
+With this fork's virtual-comment backend deployed, call `list_virtual_users()`
+to find the identity's user UUID, then pass it to the existing comment tool:
+
+```python
+create_work_item_comment(
+    project_id="PROJECT_UUID",
+    work_item_id="WORK_ITEM_UUID",
+    comment_html="<p>Implementation complete; ready for review.</p>",
+    virtual_user_id="VIRTUAL_USER_UUID",
+)
+```
+
+Both the caller and the virtual user must be active members or administrators
+of the workspace and project. The comment's `actor` is the virtual user;
+`created_by` and activity audit records identify the authenticated caller.
+Virtual users still cannot log in or authenticate with their own API keys.
+Omit `virtual_user_id` to comment as the API key owner. Invalid identities are
+rejected, and the author cannot be changed when editing a comment.
+Update the backend before reconnecting the MCP client; older backends do not
+support this parameter. No new migration or frontend build is needed for this
+comment extension if virtual users are already installed.
+
 ### Upstream transport examples
 
 The server supports three transport methods. The following examples use the
