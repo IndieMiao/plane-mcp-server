@@ -1,4 +1,13 @@
 SERVER_INSTRUCTIONS = """
+## Images in work-item descriptions
+
+Body images are separate from attachments. Use list_work_item_description_images,
+then read_work_item_description_image with its 1-based image_index to see them.
+These tools use Plane API credentials and do not require browser login. For a
+temporary browser/download link use get_work_item_description_image_download_url.
+Do not send Plane credentials to that signed storage URL. External image URLs
+are not handled by these tools.
+
 ## Virtual employee attribution
 
 On this fork with migration 0126 deployed, supported content tools accept optional
