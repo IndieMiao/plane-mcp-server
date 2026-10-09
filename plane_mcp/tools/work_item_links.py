@@ -13,6 +13,18 @@ from plane.models.work_items import (
 from plane_mcp.client import get_plane_client_context
 
 
+class CreateAttributedLink(CreateWorkItemLink):
+    """Preserve the optional Community Edition attribution field through the SDK."""
+
+    virtual_user_id: str | None = None
+
+
+class UpdateAttributedLink(UpdateWorkItemLink):
+    """Preserve the optional Community Edition attribution field through the SDK."""
+
+    virtual_user_id: str | None = None
+
+
 def register_work_item_link_tools(mcp: FastMCP) -> None:
     """Register all work item link-related tools with the MCP server."""
 
@@ -72,6 +84,7 @@ def register_work_item_link_tools(mcp: FastMCP) -> None:
         project_id: str,
         work_item_id: str,
         url: str,
+        virtual_user_id: str | None = None,
     ) -> WorkItemLink:
         """
         Create a link for a work item.
@@ -81,12 +94,14 @@ def register_work_item_link_tools(mcp: FastMCP) -> None:
             work_item_id: UUID of the work item
             url: URL of the link
 
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
+
         Returns:
             Created WorkItemLink object
         """
         client, workspace_slug = get_plane_client_context()
 
-        data = CreateWorkItemLink(url=url)
+        data = CreateAttributedLink(virtual_user_id=virtual_user_id, url=url)
 
         return client.work_items.links.create(
             workspace_slug=workspace_slug,
@@ -101,6 +116,7 @@ def register_work_item_link_tools(mcp: FastMCP) -> None:
         work_item_id: str,
         link_id: str,
         url: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> WorkItemLink:
         """
         Update a link for a work item.
@@ -111,12 +127,14 @@ def register_work_item_link_tools(mcp: FastMCP) -> None:
             link_id: UUID of the link
             url: Updated URL of the link
 
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
+
         Returns:
             Updated WorkItemLink object
         """
         client, workspace_slug = get_plane_client_context()
 
-        data = UpdateWorkItemLink(url=url)
+        data = UpdateAttributedLink(virtual_user_id=virtual_user_id, url=url)
 
         return client.work_items.links.update(
             workspace_slug=workspace_slug,
@@ -131,6 +149,7 @@ def register_work_item_link_tools(mcp: FastMCP) -> None:
         project_id: str,
         work_item_id: str,
         link_id: str,
+        virtual_user_id: str | None = None,
     ) -> None:
         """
         Delete a link for a work item.
@@ -139,8 +158,14 @@ def register_work_item_link_tools(mcp: FastMCP) -> None:
             project_id: UUID of the project
             work_item_id: UUID of the work item
             link_id: UUID of the link
+            virtual_user_id: Optional project virtual user UUID for the deletion activity.
         """
         client, workspace_slug = get_plane_client_context()
+        if virtual_user_id is not None:
+            return client.work_items.links._delete(
+                f"{workspace_slug}/projects/{project_id}/work-items/{work_item_id}/links/{link_id}",
+                data={"virtual_user_id": virtual_user_id},
+            )
         client.work_items.links.delete(
             workspace_slug=workspace_slug,
             project_id=project_id,

@@ -11,6 +11,18 @@ from plane.models.work_item_pages import CreateWorkItemPage, WorkItemPage
 from plane_mcp.client import get_plane_client_context
 
 
+class CreateAttributedPage(CreatePage):
+    """Preserve the optional Community Edition attribution field through the SDK."""
+
+    virtual_user_id: str | None = None
+
+
+class UpdateAttributedPage(UpdatePage):
+    """Preserve the optional Community Edition attribution field through the SDK."""
+
+    virtual_user_id: str | None = None
+
+
 def _resolve_page_project_id(project_id: str | None) -> str | None:
     """Resolve an explicit project or the Community Edition Pages default."""
     resolved_project_id = project_id or os.getenv("PLANE_PAGE_PROJECT_ID")
@@ -203,6 +215,7 @@ def register_page_tools(mcp: FastMCP) -> None:
         logo_props: dict[str, Any] | None = None,
         external_id: str | None = None,
         external_source: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> Page:
         """
         Create a page.
@@ -224,13 +237,18 @@ def register_page_tools(mcp: FastMCP) -> None:
             external_id: External system identifier
             external_source: External system source name
 
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
+
         Returns:
             Created Page object
         """
         client, workspace_slug = get_plane_client_context()
         project_id = _resolve_page_project_id(project_id)
+        if virtual_user_id is not None and project_id is None:
+            raise ValueError("Virtual authors require a project_id or PLANE_PAGE_PROJECT_ID.")
 
-        data = CreatePage(
+        data = CreateAttributedPage(
+            virtual_user_id=virtual_user_id,
             name=name,
             description_html=description_html,
             access=access,
@@ -268,6 +286,7 @@ def register_page_tools(mcp: FastMCP) -> None:
         logo_props: dict[str, Any] | None = None,
         external_id: str | None = None,
         external_source: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> Page:
         """
         Partially update a page.
@@ -290,12 +309,17 @@ def register_page_tools(mcp: FastMCP) -> None:
             external_id: New external system identifier
             external_source: New external system source name
 
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
+
         Returns:
             Updated Page object
         """
         client, workspace_slug = get_plane_client_context()
         project_id = _resolve_page_project_id(project_id)
-        data = UpdatePage(
+        if virtual_user_id is not None and project_id is None:
+            raise ValueError("Virtual authors require a project_id or PLANE_PAGE_PROJECT_ID.")
+        data = UpdateAttributedPage(
+            virtual_user_id=virtual_user_id,
             name=name,
             description_html=description_html,
             access=access,
@@ -314,6 +338,7 @@ def register_page_tools(mcp: FastMCP) -> None:
         page_id: str,
         name: str,
         project_id: str | None = None,
+        virtual_user_id: str | None = None,
     ) -> Page:
         """
         Rename a page.
@@ -324,12 +349,22 @@ def register_page_tools(mcp: FastMCP) -> None:
             project_id: UUID of the project. Omit to use PLANE_PAGE_PROJECT_ID,
                 or for a workspace page if no default is configured.
 
+            virtual_user_id: Optional project virtual user UUID for attribution; the API caller is retained for audit.
+
         Returns:
             Renamed Page object
         """
         client, workspace_slug = get_plane_client_context()
         project_id = _resolve_page_project_id(project_id)
-        return _update_page(client, workspace_slug, page_id, project_id, UpdatePage(name=name))
+        if virtual_user_id is not None and project_id is None:
+            raise ValueError("Virtual authors require a project_id or PLANE_PAGE_PROJECT_ID.")
+        return _update_page(
+            client,
+            workspace_slug,
+            page_id,
+            project_id,
+            UpdateAttributedPage(virtual_user_id=virtual_user_id, name=name),
+        )
 
     @mcp.tool()
     def delete_page(
