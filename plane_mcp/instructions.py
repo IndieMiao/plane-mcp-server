@@ -1,4 +1,19 @@
 SERVER_INSTRUCTIONS = """
+## Virtual employee attribution
+
+On this fork with migration 0126 deployed, supported content tools accept optional
+virtual_user_id. Query list_virtual_users and get_project_members for the identity
+UUID and project membership; keep using the real account's credentials. The ID
+sets the visible author/operator, not the assignee. Omit it to act as yourself.
+Pass project_id explicitly for Pages. Never overwrite created_by or audit fields.
+
+Supported actions include card creation/updates, assignee and label changes,
+attachment upload/deletion, link creation/updates/deletion, Page creation/updates/
+renaming, and comment creation. Card/Page deletion, archive, and restore do not
+gain virtual attribution. Comments retain actor as author and created_by as the
+real caller. Other attributed content records the caller in created_by_actor or
+updated_by_actor; activity responses expose actor_principal.
+
 ## Epics
 
 There are no epic tools — an epic is a work item whose type is named "Epic". Work
